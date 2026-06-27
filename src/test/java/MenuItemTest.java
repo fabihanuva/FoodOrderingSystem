@@ -9,4 +9,18 @@ class MenuItemTest {
         MenuItem item = new MenuItem("Khichuri", 40);
         assertEquals("Khichuri", item.name);
     }
+
+    @Test
+    @DisplayName("TC02 - Constructor sets price correctly")
+    void testConstructorSetsPrice() {
+        MenuItem item = new MenuItem("Shingara", 10);
+        assertEquals(10, item.price);
+    }
+
+    @Test
+    @DisplayName("TC03 - Constructor always initializes quantity to 0")
+    void testConstructorSetsQuantityToZero() {
+        MenuItem item = new MenuItem("Drinks", 25);
+        assertEquals(0, item.quantity);
+    }
 }
