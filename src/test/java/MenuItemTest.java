@@ -23,4 +23,11 @@ class MenuItemTest {
         MenuItem item = new MenuItem("Drinks", 25);
         assertEquals(0, item.quantity);
     }
+
+    @Test
+    @DisplayName("TC04 - Subtotal is 0 when quantity is 0 (default)")
+    void testSubtotalIsZeroByDefault() {
+        MenuItem item = new MenuItem("Eggchop", 10);
+        assertEquals(0, item.getSubtotal());
+    }
 }
