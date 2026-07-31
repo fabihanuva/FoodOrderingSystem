@@ -29,10 +29,13 @@ class RoundedBorder extends AbstractBorder {
 // Entity Classes
 class MenuItem implements Serializable {
     private static final long serialVersionUID = 1L;
+    static int nextId = 1;
+    int id;
     String name;
     int price;
     int quantity;
     public MenuItem(String name, int price) {
+        this.id = nextId++;
         this.name = name; this.price = price; this.quantity = 0;
     }
     public int getSubtotal() { return price * quantity; }
@@ -104,6 +107,7 @@ public class MUFoodCornerAdvanced extends JFrame {
     private JLabel totalLabel;
     private JTable historyTable;
     private DefaultTableModel tableModel;
+    private boolean adminUnlocked = false;
 
     public MUFoodCornerAdvanced() {
         super("MU Food Corner Elite");
@@ -115,7 +119,17 @@ public class MUFoodCornerAdvanced extends JFrame {
         tabs.addTab("🛒 SHOP", createOrderPanel());
         tabs.addTab("📜 HISTORY", createHistoryPanel());
         tabs.addTab("⚙️ ADMIN", createAdminPanel());
-        
+        tabs.addChangeListener(e -> {
+            if (tabs.getSelectedIndex() == 2 && !adminUnlocked) {
+                String pass = JOptionPane.showInputDialog(this, "Enter admin password:");
+                if (pass == null || !pass.equals("admin123")) {
+                    tabs.setSelectedIndex(0);
+                    if (pass != null) JOptionPane.showMessageDialog(this, "Incorrect password.");
+                } else {
+                    adminUnlocked = true;
+                }
+            }
+        });
         add(tabs);
         setVisible(true);
     }
@@ -123,7 +137,9 @@ public class MUFoodCornerAdvanced extends JFrame {
     private void setupFrame() {
         try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(1100, 820); 
+        pack();
+        setMinimumSize(new Dimension(1100, 820));
+        setLocationRelativeTo(null);
         getContentPane().setBackground(APP_BG);
         setLocationRelativeTo(null);
     }
@@ -342,12 +358,17 @@ public class MUFoodCornerAdvanced extends JFrame {
                 nf.setText(""); pf.setText("");
             } catch(Exception ex) { JOptionPane.showMessageDialog(this, "Enter valid price!"); }
         });
-        
+
         delB.addActionListener(e -> {
             int row = mTable.getSelectedRow();
             if(row != -1) {
-                menuItems.remove(row);
-                saveData(); refreshMenuDisplay(); refreshAdmin.run();
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        "Delete this menu item permanently?", "Confirm Delete",
+                        JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    menuItems.remove(row);
+                    saveData(); refreshMenuDisplay(); refreshAdmin.run();
+                }
             }
         });
 
@@ -367,6 +388,10 @@ public class MUFoodCornerAdvanced extends JFrame {
 
     private JButton createBtn(String t, Color bg) {
         JButton b = new JButton(t);
+        b.setUI(new javax.swing.plaf.basic.BasicButtonUI()); // forces Java to draw the button itself, ignoring OS theme
+        b.setOpaque(true);
+        b.setContentAreaFilled(true);
+        b.setBorderPainted(false);
         b.setFont(new Font("Segoe UI", Font.BOLD, 13));
         b.setBackground(bg);
         b.setForeground(Color.WHITE);
@@ -437,6 +462,13 @@ public class MUFoodCornerAdvanced extends JFrame {
         menuDisplayPanel.revalidate(); menuDisplayPanel.repaint();
     }
 
+    private int getDiscount(int subtotal) {
+        String p = promoField.getText().trim().toUpperCase();
+        if (p.equals("MU50")) return 50;
+        if (p.equals("OFF10")) return (int) (subtotal * 0.1);
+        return 0;
+    }
+
     private void calculateTotal() {
         int sub = 0; 
         StringBuilder sb = new StringBuilder();
@@ -449,11 +481,8 @@ public class MUFoodCornerAdvanced extends JFrame {
                 sb.append(String.format("%-15s x%-4d TK %d\n", m.name, m.quantity, m.getSubtotal()));
             }
         }
-        
-        int dis = 0; 
-        String p = promoField.getText().trim().toUpperCase();
-        if(p.equals("MU50")) dis = 50; 
-        else if(p.equals("OFF10")) dis = (int)(sub * 0.1);
+
+        int dis = getDiscount(sub);
         
         int tot = Math.max(0, sub - dis);
         totalLabel.setText("Total TK " + tot);
@@ -488,6 +517,12 @@ public class MUFoodCornerAdvanced extends JFrame {
             JOptionPane.showMessageDialog(this, "Please fill in all delivery details!", "Missing Information", JOptionPane.WARNING_MESSAGE); 
             return; 
         }
+
+        if (!phone.matches("^[0-9+\\-\\s]{7,15}$")) {
+            JOptionPane.showMessageDialog(this, "Enter a valid phone number!",
+                    "Invalid Phone", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         
         boolean hasItems = false;
         for(MenuItem m : menuItems) if(m.quantity > 0) hasItems = true;
@@ -498,8 +533,7 @@ public class MUFoodCornerAdvanced extends JFrame {
 
         calculateTotal();
         int sub = 0; for(MenuItem m : menuItems) sub += m.getSubtotal();
-        int dis = 0; String p = promoField.getText().trim().toUpperCase();
-        if(p.equals("MU50")) dis = 50; else if(p.equals("OFF10")) dis = (int)(sub*0.1);
+        int dis = getDiscount(sub);
         
         Order o = new Order(menuItems, name, phone, addr, dis);
         orders.add(o); 
@@ -545,12 +579,18 @@ public class MUFoodCornerAdvanced extends JFrame {
             oos1.writeObject(orders); oos1.close();
             ObjectOutputStream oos2 = new ObjectOutputStream(new FileOutputStream("menu.ser"));
             oos2.writeObject(menuItems); oos2.close();
-        } catch(Exception e) {}
+        } catch(Exception e) {
+            JOptionPane.showMessageDialog(this, "Failed to save data: " + e.getMessage(),
+                    "Save Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     @SuppressWarnings("unchecked")
     private void loadData() {
-        try { ObjectInputStream ois = new ObjectInputStream(new FileInputStream("orders.ser")); orders = (ArrayList<Order>) ois.readObject(); ois.close(); } catch(Exception e) { orders = new ArrayList<>(); }
+        try { ObjectInputStream ois = new ObjectInputStream(new FileInputStream("orders.ser")); orders = (ArrayList<Order>) ois.readObject(); ois.close(); } catch(Exception e) {
+            System.err.println("Could not load orders.ser: " + e.getMessage());
+            orders = new ArrayList<>();
+        }
         try { ObjectInputStream ois = new ObjectInputStream(new FileInputStream("menu.ser")); menuItems = (ArrayList<MenuItem>) ois.readObject(); ois.close(); } catch(Exception e) {
             menuItems = new ArrayList<>();
             menuItems.add(new MenuItem("Khichuri", 40)); menuItems.add(new MenuItem("Shingara", 10));
