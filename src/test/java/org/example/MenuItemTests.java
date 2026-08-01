@@ -1,3 +1,5 @@
+package org.example;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,22 @@ public class MenuItemTests {
         item.quantity = 2;
 
         assertNotEquals(100, item.getSubtotal());
+    }
+
+    @Test
+    void testAssertSame() {
+
+        MenuItem sameItem = item;
+
+        assertSame(item, sameItem);
+    }
+
+    @Test
+    void testAssertNotSame() {
+
+        MenuItem anotherItem = new MenuItem("Burger",100);
+
+        assertNotSame(item, anotherItem);
     }
 
 
