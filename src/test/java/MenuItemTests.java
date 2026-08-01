@@ -34,6 +34,22 @@ public class MenuItemTests {
         assertNotEquals(100, item.getSubtotal());
     }
 
+    @Test
+    void testAssertSame() {
+
+        MenuItem sameItem = item;
+
+        assertSame(item, sameItem);
+    }
+
+    @Test
+    void testAssertNotSame() {
+
+        MenuItem anotherItem = new MenuItem("Burger",100);
+
+        assertNotSame(item, anotherItem);
+    }
+
 
 
 
