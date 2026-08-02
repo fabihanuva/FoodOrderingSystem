@@ -25,6 +25,25 @@ public class OrderTest {
 
     }
 
+    @Test
+    void testAssertTimeout() {
+
+        ArrayList<MenuItem> items = new ArrayList<>();
+
+        MenuItem item = new MenuItem("Pizza",200);
+        item.quantity = 1;
+
+        items.add(item);
+
+        assertTimeout(Duration.ofSeconds(1), () -> {
+
+            Order order = new Order(items,"Nish","01711111111","Sylhet",0);
+
+            order.getSummary();
+
+        });
+
+    }
 
     @Test
     void testAssertThrows() {
