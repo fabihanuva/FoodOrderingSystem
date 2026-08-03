@@ -110,6 +110,10 @@ public class MUFoodCornerAdvanced extends JFrame {
     private DefaultTableModel tableModel;
     private boolean adminUnlocked = false;
 
+    private final DiscountService discountService = new DefaultDiscountService();
+    private final OrderService orderService = new OrderService(discountService);
+    private final OrderValidator orderValidator = new OrderValidator();
+
     public MUFoodCornerAdvanced() {
         super("MU Food Corner Elite");
         loadData();
@@ -464,10 +468,7 @@ public class MUFoodCornerAdvanced extends JFrame {
     }
 
     private int getDiscount(int subtotal) {
-        String p = promoField.getText().trim().toUpperCase();
-        if (p.equals("MU50")) return 50;
-        if (p.equals("OFF10")) return (int) (subtotal * 0.1);
-        return 0;
+        return discountService.getDiscount(promoField.getText(), subtotal);
     }
 
     private void calculateTotal() {
@@ -513,30 +514,25 @@ public class MUFoodCornerAdvanced extends JFrame {
         String name = nameField.getText().trim();
         String phone = phoneField.getText().trim();
         String addr = addressField.getText().trim();
-        
-        if(name.isEmpty() || phone.isEmpty() || addr.isEmpty()){ 
-            JOptionPane.showMessageDialog(this, "Please fill in all delivery details!", "Missing Information", JOptionPane.WARNING_MESSAGE); 
-            return; 
+
+        if (!orderValidator.areRequiredFieldsFilled(name, phone, addr)) {
+            JOptionPane.showMessageDialog(this, "Please fill in all delivery details!", "Missing Information", JOptionPane.WARNING_MESSAGE);
+            return;
         }
 
-        if (!phone.matches("^[0-9+\\-\\s]{7,15}$")) {
+        if (!orderValidator.isValidPhone(phone)) {
             JOptionPane.showMessageDialog(this, "Enter a valid phone number!",
                     "Invalid Phone", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        
-        boolean hasItems = false;
-        for(MenuItem m : menuItems) if(m.quantity > 0) hasItems = true;
-        if(!hasItems) { 
-            JOptionPane.showMessageDialog(this, "Your cart is empty! Add some items first.", "No Items", JOptionPane.WARNING_MESSAGE); 
-            return; 
+
+        if (!orderValidator.hasItemsInCart(menuItems)) {
+            JOptionPane.showMessageDialog(this, "Your cart is empty! Add some items first.", "No Items", JOptionPane.WARNING_MESSAGE);
+            return;
         }
 
         calculateTotal();
-        int sub = 0; for(MenuItem m : menuItems) sub += m.getSubtotal();
-        int dis = getDiscount(sub);
-        
-        Order o = new Order(menuItems, name, phone, addr, dis);
+        Order o = orderService.placeOrder(menuItems, name, phone, addr, promoField.getText());
         orders.add(o); 
         saveData(); 
         refreshHistoryTable();

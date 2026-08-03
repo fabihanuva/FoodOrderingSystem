@@ -27,8 +27,21 @@ A desktop food-ordering application for a campus food counter, built with **Java
 MUFoodCorner/
 ├── pom.xml
 ├── src/
-│   ├── main/java/MUFoodCornerAdvanced.java   # entry point + entire application
-│   └── test/java/MenuItemTest.java           # unit tests for the MenuItem model
+│   ├── main/java/org/example/
+│   │   ├── MUFoodCornerAdvanced.java   # entry point, Swing UI, event handling, persistence
+│   │   ├── OrderValidator.java         # required-field / phone / cart-not-empty rules
+│   │   ├── DiscountService.java        # promo-code discount contract
+│   │   ├── DefaultDiscountService.java # MU50 / OFF10 promo rules (real implementation)
+│   │   └── OrderService.java           # builds an Order from a cart + a DiscountService
+│   └── test/java/org/example/
+│       ├── MenuItemTest.java                 # MenuItem: construction, subtotal, equality
+│       ├── OrderTest.java                    # Order: assertThrows/DoesNotThrow/Timeout
+│       ├── CoreAssertionsTest.java           # assertTrue/False/Null/NotNull/ArrayEquals, BeforeAll/AfterAll
+│       ├── ParameterizedTests.java           # ValueSource/CsvSource/MethodSource/CsvFileSource
+│       ├── OrderValidatorTest.java           # validation rules, incl. phone boundary values
+│       ├── DefaultDiscountServiceTest.java   # real discount rules (no mocking)
+│       ├── OrderServiceMockTest.java         # OrderService with a mocked DiscountService
+│       └── OrderServiceIntegrationTest.java  # OrderService with the real DiscountService
 ├── orders.ser                                 # generated at runtime
 └── menu.ser                                   # generated at runtime
 ```
@@ -42,14 +55,14 @@ MUFoodCorner/
 mvn test
 
 # Compile and launch the application
-mvn compile exec:java -Dexec.mainClass="MUFoodCornerAdvanced"
+mvn compile exec:java -Dexec.mainClass="org.example.MUFoodCornerAdvanced"
 ```
 
 If the `exec` plugin isn't pre-configured, Maven will resolve it automatically on first run, or you can build manually:
 
 ```bash
-javac -d out src/main/java/MUFoodCornerAdvanced.java
-java -cp out MUFoodCornerAdvanced
+javac -d out src/main/java/org/example/*.java
+java -cp out org.example.MUFoodCornerAdvanced
 ```
 
 ---
@@ -97,14 +110,22 @@ and similarly in `createStyledInput()` and on `summaryArea`.
 
 **Why it fits:** `MenuItem`/`Order` hold no Swing dependencies, so the same objects can be serialized to disk, summarized into a receipt string, or rendered in a table without conversion code. `JTable`/`DefaultTableModel` is Swing's own Model-View split, so adding a row to the model automatically refreshes the view.
 
-**Honest caveat:** This separation is partial, not textbook MVC. `MUFoodCornerAdvanced` currently plays the role of View, Controller, *and* persistence layer all at once (it builds the UI, handles events, and calls `saveData()`/`loadData()` directly). For a larger version of this app, extracting a dedicated controller/service class and a small persistence class would complete the separation and make the code easier to unit test.
+**Honest caveat:** This separation is partial, not textbook MVC. `MUFoodCornerAdvanced` currently plays the role of View and Controller (it builds the UI and handles events), but still calls `saveData()`/`loadData()` directly — persistence has not yet been extracted into its own class. See Known Limitations below.
+
+### 5. Strategy + Dependency Injection
+
+**Where:** `DiscountService` (interface) / `DefaultDiscountService` (the real MU50/OFF10 rules), injected into `OrderService` through its constructor. `MUFoodCornerAdvanced` holds one `DiscountService`, one `OrderService`, and one `OrderValidator` as fields and delegates to them from `getDiscount()` and `confirmOrder()` instead of computing discount/validation logic inline.
+
+**Problem it solves:** The original code had the promo-code rules and the delivery-detail validation hardcoded directly inside the GUI class, which meant they could only be exercised by clicking through the actual UI — there was no way to unit test "does `MU50` give TK 50 off" without a running `JFrame`.
+
+**Why it fits:** `DiscountService` is a Strategy — `OrderService` doesn't know or care whether it's `DefaultDiscountService` or a different promo-rule implementation, it just calls `getDiscount(...)`. Passing that dependency in through the constructor (rather than `OrderService` constructing its own `DefaultDiscountService`) is textbook Dependency Injection, and it's what makes `OrderServiceMockTest` possible — a test can swap in a mock `DiscountService` and verify `OrderService`'s own logic in isolation, while `OrderServiceIntegrationTest` and `DefaultDiscountServiceTest` exercise the real implementation. `OrderValidator` follows the same idea for the required-field/phone/cart-not-empty rules.
 
 ---
 
 ## Known Limitations / Suggested Improvements
 
-- **Persistence:** `.ser` files are brittle (any change to `MenuItem`/`Order`'s fields can break existing saved data) and store to the working directory rather than a fixed user-data location. A lightweight format like JSON or SQLite would be more robust.
+- **Persistence:** `.ser` files are brittle (any change to `MenuItem`/`Order`'s fields can break existing saved data) and store to the working directory rather than a fixed user-data location. `saveData()`/`loadData()` also still live directly on `MUFoodCornerAdvanced` rather than a dedicated persistence class, so they aren't independently unit tested yet — a natural next extraction, following the same pattern used for `OrderValidator`/`OrderService`.
 - **Admin authentication:** The admin password is a hardcoded plaintext string in source. Fine for a class project/demo, but not suitable if this were ever deployed for real use.
-- **Single God-class:** All UI, event handling, and persistence logic live in one class (`MUFoodCornerAdvanced`). Splitting it into `OrderService`, `MenuRepository`, and separate panel classes would make the Model-View separation above a true MVC and simplify unit testing.
-- **Test coverage:** Only `MenuItem`'s constructor/subtotal logic is currently tested. `Order` total/discount calculation and `MUFoodCornerAdvanced`'s discount rules (`getDiscount()`) have no automated tests yet.
+- **God-class, partially addressed:** Discount calculation and order-placement validation have been extracted into `DiscountService`/`OrderService`/`OrderValidator` and are unit tested independently of the UI. `MUFoodCornerAdvanced` still owns all Swing layout/event-wiring and the persistence calls, so it isn't a full MVC split, but it's no longer doing everything.
+- **Test coverage:** `MenuItem`, `Order`, `DiscountService` (both mocked and real), and `OrderValidator` (including boundary values on the phone rule) are covered. Still untested: `saveData()`/`loadData()` serialization round-trip, and the admin panel's add/update/delete menu logic (both still Swing-coupled).
 
