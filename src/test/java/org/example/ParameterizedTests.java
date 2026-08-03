@@ -12,9 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ParameterizedTests {
 
-    // -------------------------
     // ValueSource
-    // -------------------------
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 5, 10})
     void testValueSource(int quantity) {
@@ -25,9 +23,7 @@ public class ParameterizedTests {
         assertTrue(item.getSubtotal() > 0);
     }
 
-    // -------------------------
     // CsvSource
-    // -------------------------
     @ParameterizedTest
     @CsvSource({
             "1,100",
@@ -43,9 +39,7 @@ public class ParameterizedTests {
         assertEquals(expectedSubtotal, item.getSubtotal());
     }
 
-    // -------------------------
     // MethodSource
-    // -------------------------
     static Stream<org.junit.jupiter.params.provider.Arguments> dataProvider() {
 
         return Stream.of(
@@ -66,9 +60,7 @@ public class ParameterizedTests {
 
     }
 
-    // -------------------------
     // CsvFileSource
-    // -------------------------
     @ParameterizedTest
     @CsvFileSource(resources = "/menu.csv", numLinesToSkip = 1)
     void testCsvFileSource(int quantity,int expectedSubtotal) {
