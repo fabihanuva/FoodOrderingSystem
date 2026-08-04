@@ -21,6 +21,10 @@ A desktop food-ordering application for a campus food counter, built with **Java
 | Testing | JUnit 5 (Jupiter) |
 | Persistence | Java Serialization (flat `.ser` files) |
 
+Project Overview
+
+MU Food Corner is a Java-based desktop food ordering system developed using Java Swing. The application allows customers to browse a menu, add food items to their cart, apply discount codes, place orders, and generate receipts. It also includes an admin panel for managing menu items and viewing order history. The system uses file serialization to save menu and order data, ensuring information is retained between sessions. The project follows object-oriented programming principles and provides a simple, user-friendly interface for both customers and administrators.
+
 ## Project Structure
 
 ```
